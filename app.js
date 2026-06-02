@@ -885,20 +885,23 @@ function renderKanjiChips() {
 
 // Marca automaticamente as TOP_N palavras mais frequentes do kanji na lista.
 // Só adiciona palavras que ainda não estão em selected. Retorna quantas foram adicionadas.
-// Score combinado JLPT+frequência para ordenar palavras.
-// Menor = melhor (mais útil pedagogicamente).
-// - Palavras com nível JLPT vencem todas as outras.
-// - Entre as JLPT, vence o nível mais básico (N5 antes de N4 antes de N3...).
-// - Dentro do mesmo nível, vence a frequência menor (mais comum no corpus).
+// Score combinado para ordenar palavras. Menor = melhor (mais útil).
+// Sinal primário: rank de frequência JPDB (corpus de mídia real — anime,
+// novels, dramas). Rank menor = palavra mais comum no japonês cotidiano.
+// JLPT dá um "empurrão": cada nível mais básico sobe a palavra (N5 sobe mais).
+// Palavras sem rank JPDB caem para o fim (usam o f antigo do JMdict).
 function wordScore(word) {
-  const j = word.j;
-  const f = word.f ?? 99;
-  if (j !== undefined && j !== null) {
-    // N5 (j=5) → 0, N4 → 10, N3 → 20, N2 → 30, N1 → 40
-    return (5 - j) * 10 + Math.min(f, 50) * 0.01;
+  const jp = word.jp;   // rank JPDB (1 = mais comum)
+  const j = word.j;     // nível JLPT (5=N5 ... 1=N1)
+  if (jp !== undefined && jp !== null) {
+    let score = jp;
+    if (j !== undefined && j !== null) {
+      score -= j * 400;  // N5 (j=5) → -2000; N1 (j=1) → -400
+    }
+    return score;
   }
-  // sem JLPT: começa em 100 + f (sempre depois de qualquer JLPT)
-  return 100 + f;
+  // sem JPDB: vai pro fim, ordenado pelo f antigo
+  return 1000000 + (word.f ?? 99);
 }
 
 function autoMarkTopWords(list, kanji, n) {
